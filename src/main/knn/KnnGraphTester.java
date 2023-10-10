@@ -1,4 +1,4 @@
-/*
+package knn;/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -46,11 +46,6 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.KnnByteVectorField;
-import org.apache.lucene.document.KnnFloatVectorField;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -84,13 +79,13 @@ import org.apache.lucene.util.hnsw.NeighborQueue;
 /**
  * For testing indexing and search performance of a knn-graph
  *
- * <p>java -cp .../lib/*.jar org.apache.lucene.util.hnsw.KnnGraphTester -ndoc 1000000 -search
+ * <p>java -cp .../lib/*.jar org.apache.lucene.util.hnsw.knn.KnnGraphTester -ndoc 1000000 -search
  * .../vectors.bin
  */
 public class KnnGraphTester {
 
-  private static final String KNN_FIELD = "knn";
-  private static final String ID_FIELD = "id";
+  public static final String KNN_FIELD = "knn";
+  public static final String ID_FIELD = "id";
   private static final double WRITER_BUFFER_MB = 1994d;
 
   private int numDocs;
@@ -225,6 +220,9 @@ public class KnnGraphTester {
         case "-docs":
           docVectorsPath = Paths.get(args[++iarg]);
           break;
+        case "-indexPath":
+          indexPath = Paths.get(args[++iarg]);
+          break;
         case "-encoding":
           String encoding = args[++iarg];
           switch (encoding) {
@@ -299,12 +297,15 @@ public class KnnGraphTester {
     if (prefilter && selectivity == 1f) {
       throw new IllegalArgumentException("-prefilter requires filterSelectivity between 0 and 1");
     }
-    indexPath = Paths.get(formatIndexPath(docVectorsPath));
+    if (indexPath == null) {
+      indexPath = Paths.get(formatIndexPath(docVectorsPath)); // derive index path
+    }
     if (reindex) {
       if (docVectorsPath == null) {
         throw new IllegalArgumentException("-docs argument is required when indexing");
       }
-      reindexTimeMsec = createIndex(docVectorsPath, indexPath);
+      reindexTimeMsec = new KnnIndexer(docVectorsPath, indexPath, maxConn, beamWidth, vectorEncoding, dim,
+              similarityFunction, numDocs, quiet ).createIndex();
       if (forceMerge) {
         forceMerge();
       }
@@ -512,8 +513,23 @@ public class KnnGraphTester {
       float recall = checkResults(results, nn);
       totalVisited /= numIters;
       System.out.printf(
+              Locale.ROOT,
+              "|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s\t|%s|\n",
+              "recall",
+              "avgCpuTime",
+              "numDocs",
+              "fanout",
+              "maxConn",
+              "beamWidth",
+              "totalVisited",
+              "reindexTimeMsec",
+              "selectivity",
+              "prefilter");
+      System.out.println(
+              "|---|---|---|---|---|---|---|---|---|---|");
+              System.out.printf(
           Locale.ROOT,
-          "%5.3f\t%5.2f\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\n",
+          "|%5.3f\t|%5.2f\t|%d\t|%d\t|%d\t|%d\t|%d\t|%d\t|%.2f\t|%s|\n",
           recall,
           totalCpuTime / (float) numIters,
           numDocs,
@@ -524,75 +540,6 @@ public class KnnGraphTester {
           reindexTimeMsec,
           selectivity,
           prefilter ? "pre-filter" : "post-filter");
-    }
-  }
-
-  private abstract static class VectorReader {
-    final float[] target;
-    final ByteBuffer bytes;
-    final FileChannel input;
-
-    static VectorReader create(FileChannel input, int dim, VectorEncoding vectorEncoding) {
-      int bufferSize = dim * vectorEncoding.byteSize;
-      return switch (vectorEncoding) {
-        case BYTE -> new VectorReaderByte(input, dim, bufferSize);
-        case FLOAT32 -> new VectorReaderFloat32(input, dim, bufferSize);
-      };
-    }
-
-    VectorReader(FileChannel input, int dim, int bufferSize) {
-      this.bytes = ByteBuffer.wrap(new byte[bufferSize]).order(ByteOrder.LITTLE_ENDIAN);
-      this.input = input;
-      target = new float[dim];
-    }
-
-    void reset() throws IOException {
-      input.position(0);
-    }
-
-    protected final void readNext() throws IOException {
-      this.input.read(bytes);
-      bytes.position(0);
-    }
-
-    abstract float[] next() throws IOException;
-  }
-
-  private static class VectorReaderFloat32 extends VectorReader {
-    VectorReaderFloat32(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.asFloatBuffer().get(target);
-      return target;
-    }
-  }
-
-  private static class VectorReaderByte extends VectorReader {
-    private final byte[] scratch;
-
-    VectorReaderByte(FileChannel input, int dim, int bufferSize) {
-      super(input, dim, bufferSize);
-      scratch = new byte[dim];
-    }
-
-    @Override
-    float[] next() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      for (int i = 0; i < scratch.length; i++) {
-        target[i] = scratch[i];
-      }
-      return target;
-    }
-
-    byte[] nextBytes() throws IOException {
-      readNext();
-      bytes.get(scratch);
-      return scratch;
     }
   }
 

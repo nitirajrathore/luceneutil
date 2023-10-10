@@ -31,9 +31,9 @@ VALUES = {
     'ndoc': (10000, 100000, 200000),
     #'ndoc': (100000,),
     #'maxConn': (32, 64, 96),
-    'maxConn': (64, ),
+    'maxConn': (32, ),
     #'beamWidthIndex': (250, 500),
-    'beamWidthIndex': (250, ),
+    'beamWidthIndex': (100, ),
     #'fanout': (20, 100, 250)
     'fanout': (0,),
     #'topK': (10,),
