@@ -3,8 +3,8 @@ package knn;
 import knn.KnnGraphTester;
 import knn.VectorReader;
 import org.apache.lucene.codecs.KnnVectorsFormat;
-import org.apache.lucene.codecs.lucene95.Lucene95Codec;
-import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -52,10 +52,10 @@ public class KnnIndexer {
     public int createIndex() throws IOException {
         IndexWriterConfig iwc = new IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         iwc.setCodec(
-                new Lucene95Codec() {
+                new Lucene99Codec() {
                     @Override
                     public KnnVectorsFormat getKnnVectorsFormatForField(String field) {
-                        return new Lucene95HnswVectorsFormat(maxConn, beamWidth);
+                        return new Lucene99HnswVectorsFormat(maxConn, beamWidth);
                     }
                 });
         // iwc.setMergePolicy(NoMergePolicy.INSTANCE);
