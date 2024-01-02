@@ -60,7 +60,8 @@ public class CheckHNSWConnectedness {
                         int graphSize = graph.getNodesOnLevel(l).size();
                         List<Integer> compSizes = otherComponents.stream().map(Set::size).toList();
                         ArrayList<Integer> sizes = new ArrayList<>();
-                        sizes.add(graphSize, reachableNodes.size());
+                        sizes.add(graphSize);
+                        sizes.add(reachableNodes.size());
                         sizes.addAll(compSizes);
                         nodeCounts.add(sizes);
                     }
@@ -109,16 +110,18 @@ public class CheckHNSWConnectedness {
         for (int level = 0; level < hnswGraph.numLevels(); level++) {
             int l = level;
             HnswGraph.NodesIterator iterator = hnswGraph.getNodesOnLevel(level);
+                List<String> friends = new ArrayList<>();
             iterator.forEachRemaining((IntConsumer) node -> {
                 if (null == listedNodes || (listedNodes.get(l) != null &&
                         listedNodes.get(l).contains(node))) {
-                    List<String> friends = new ArrayList<>();
                     try {
                         int friendOrd;
+                        hnswGraph.seek(l, node);
                         while ((friendOrd = hnswGraph.nextNeighbor()) != NO_MORE_DOCS) {
                             friends.add(friendOrd + "");
                         }
                         fw.write(getNeighbourString(l, node, friends, shouldDumpNeighbours) + "\n");
+                        friends.clear();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -201,7 +204,7 @@ public class CheckHNSWConnectedness {
     }
 
     private static String formatInt(int num) {
-        return String.format("%-8d" + num);
+        return String.format("%-8d", num);
     }
 
     private static void dumpGraph(String index, String hnswField, Writer fileWriter) throws IOException {

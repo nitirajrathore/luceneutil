@@ -110,7 +110,7 @@
     </target>
 
     <target name="run" depends="compile" description="Run any particular java main class. Pass the class name as`-Dmain.class=`
-     and any arguments as a doubley quoted string in `-Dargs=`. You can also pass any jvm args in `-DjvmArgs=`">
+     and any arguments as a doubly quoted string in `-Dargs=`. You can also pass any jvm args in `-DjvmArgs=`">
         <java fork="true" classname="${main.class}">
             <classpath>
                 <path refid="app.path"/>
