@@ -106,7 +106,7 @@ public class CheckHNSWConnectedness {
      * @param shouldDumpNeighbours dumps the actual neighbour nodes
      * @throws IOException
      */
-    public static void dumpGraph(HnswGraph hnswGraph, Map<Integer, Set<Integer>> listedNodes, Writer fw, boolean shouldDumpNeighbours) throws IOException {
+    public static void dumpGraph(int segment, HnswGraph hnswGraph, Map<Integer, Set<Integer>> listedNodes, Writer fw, boolean shouldDumpNeighbours) throws IOException {
         for (int level = 0; level < hnswGraph.numLevels(); level++) {
             int l = level;
             HnswGraph.NodesIterator iterator = hnswGraph.getNodesOnLevel(level);
@@ -120,7 +120,7 @@ public class CheckHNSWConnectedness {
                         while ((friendOrd = hnswGraph.nextNeighbor()) != NO_MORE_DOCS) {
                             friends.add(friendOrd + "");
                         }
-                        fw.write(getNeighbourString(l, node, friends, shouldDumpNeighbours) + "\n");
+                        fw.write(getNeighbourString(segment, l, node, friends, shouldDumpNeighbours) + "\n");
                         friends.clear();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -130,8 +130,8 @@ public class CheckHNSWConnectedness {
         }
     }
 
-    private static String getNeighbourString(int level, int node, List<String> friends, boolean shouldDumpNeighbours) {
-        return "level=" + level + ",node=" + node + ",count=" + friends.size() + (shouldDumpNeighbours? ",friends=" + String.join(",", friends) : "");
+    private static String getNeighbourString(int segment, int level, int node, List<String> friends, boolean shouldDumpNeighbours) {
+        return "segment=" + segment + ",level=" + level + ",node=" + node + ",count=" + friends.size() + (shouldDumpNeighbours? ",friends=" + String.join(",", friends) : "");
     }
 
     public static Set<Integer> getOverallReachableNodes(HnswGraph graph) throws IOException {
@@ -210,12 +210,14 @@ public class CheckHNSWConnectedness {
     private static void dumpGraph(String index, String hnswField, Writer fileWriter) throws IOException {
         try (FSDirectory dir = FSDirectory.open(Paths.get(index));
              IndexReader indexReader = DirectoryReader.open(dir)) {
+            int segment = 0;
             for (LeafReaderContext ctx : indexReader.leaves()) {
                 KnnVectorsReader reader = ((PerFieldKnnVectorsFormat.FieldsReader) ((SegmentReader) ctx.reader()).getVectorReader()).getFieldReader(hnswField);
                 if (reader != null) {
                     HnswGraph graph = ((Lucene99HnswVectorsReader) reader).getGraph(hnswField);
-                    dumpGraph(graph, null, fileWriter, true);
+                    dumpGraph(segment, graph, null, fileWriter, true);
                 }
+                segment++;
             }
         }
     }
